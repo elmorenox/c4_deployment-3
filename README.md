@@ -1,18 +1,67 @@
-# Deploying a Jenkins Service and Elastic Beanstalk Application
+# Conitnous Integration and Deployment of Elastib Beanstalk Application with Jenkins
 
 Summary
 
-The app in this repository is used to automate a build and test on jenkins and a deploy to Elastic Beanstalk with awsebcli
+The app in this repository is used in the automation a build and test on Kenkins and a deployment to Elastic Beanstalk.
+We use awsebcli on the Jenkis server to deploy with Elastic Beanstalk. The Jenkins server is on and EC2. 
+We give access to Jenkins to pull from thhis GitHub repository. 
+We also add behaviors and a webhook so that the pull is automated when a branch is created. 
+This is not fully fleshed out and we need to test whether a branches that are not ```main``` and are pushed to the repo also trigger a deploy. 
+This is not behavior we want and we have noted some additional steps to improve this at the end of this document. 
+
+This is out Jenkins file
+
+```json
+pipeline {
+  agent any
+   stages {
+    stage ('Build') {
+      steps {
+        sh '''#!/bin/bash
+        python3 -m venv test3
+        source test3/bin/activate
+        pip install pip --upgrade
+        pip install -r requirements.txt
+        export FLASK_APP=application
+        flask run &
+        '''
+     }
+   }
+    stage ('test') {
+      steps {
+        sh '''#!/bin/bash
+        source test3/bin/activate
+        py.test --verbose --junit-xml test-reports/results.xml
+        ''' 
+      }
+    
+      post{
+        always {
+          junit 'test-reports/results.xml'
+        }
+       
+      }
+    }
+    stage ('Deploy') { 
+      steps { 
+        sh '/var/lib/jenkins/.local/bin/eb deploy' 
+      } 
+    }
+    
+  }
+ }
+```
+
 
 These are the steps
 
-1. Create an AWS EC2 instance.
-2. Installing a Jenkins service on the EC2 instance.
-3. Creating a multibranch pipeline on Jenkins
-4. Install the aws cli and awsebcli on the Jenkins server
-5. Adding IAM service roles for EC2 and EBS
-6. Creating a Jenkinsfile with a Deploy stage that uses the awsebcli to trigger a deployment to EBS
-7. Using the Github plugin for Jenkins to set up a webhook that trigger a deployement when a push happens on main
+1. Create an AWS EC2 instance
+3. Installing a Jenkins service on the EC2 instance
+4. Creating a multibranch pipeline on Jenkins
+5. Install the aws cli and awsebcli on the Jenkins server
+6. Adding IAM service roles for EC2 and EBS
+7. Using a Jenkinsfile with a Deploy stage that uses the awsebcli to trigger a deployment to EBS. Testing is done with pytest.
+8. Using the Github plugin for Jenkins to set up a webhook that trigger a deployment when a push happens on main
 
 ![Jenkins-Elasticbeanstalk-Diagram](automate-ebs-deploy.jpeg)
 
@@ -29,6 +78,9 @@ Create EC2 instance to host the Jenkins service
 - Launch the instance
 
 ## Jenkins
+
+We use Jenkins to build, test, and deploy the application. Java is a dependency for Jenkins and python, venv and pip are dependencies for the testing.
+unzip apt package is used to unzip the awscli
 
 Access your EC2 instance's terminal through instance connect. We'll set up the linux environment to install Jenkins.
 
@@ -57,6 +109,16 @@ Install venv for python 3.10.
 sudo apt-get install python3.10-venv
 ```
 
+- Install Pip, the package manager used by the python virutal environment
+```bash
+sudo apt-get install python3-pip
+```
+
+- Install unzip so that we can unzip the awscli later
+  ```bash
+  sudo apt-get install unzip
+  ```
+
 Install Jenkins
 
 - These curl and apt-get commands downloads and installs jenkins
@@ -77,11 +139,13 @@ Start Jenkins service
 sudo systemctl start jenkins
 ```
 
-Access the Jenkins dashboard
+Access the Jenkins dashboard. We'll being to build the pipeline. We are using a multibranch pipeline. At the moment this is pretty naive.
+We have the branch discovery set to 'All Branches.' I have questions whether this will trigger build, test, and deploy when branches that aren't ```main```
+are pushed to our repository. In the 'Places for Imrovement' section below we note some additional behaviors the could be implemented to only trigger a build on branches that initiate a PR. In short we want to use multibranch to know whether in isolation a PR branch has a problem and if that branch would break the ```main``` branch if merged, but that's not fully implement here. See 'Places for Improvemnet' below. 
 
 - Retrieve admin password from /var/jenkins/secrets/initialAdminPassword
 - Navigate to {public.ip}:8080 on your browser to configure the dashboard. You will be prompted for the admin password
-- You will be prompted to install the recommended plugin or choose your own. Install the quick start jenkins plugins.
+- You will be prompted to install the recommended plugin or choose your own. Install the quick start jenkins plugins
 - Install the Jenkins 'Pipeline Utility Steps':
   - [https://plugins.jenkins.io/pipeline-utility-steps/](https://plugins.jenkins.io/pipeline-utility-steps/)
   - ![Screenshot 2023-08-25 at 8 48 15 PM](https://github.com/elmorenox/Deploy_Jenkins_Server-EBS_Application/assets/8043346/3532d82d-9d18-472c-9b63-028cd1f932b0)
@@ -91,7 +155,7 @@ Access the Jenkins dashboard
 
 ### Github tokens
 
-Before you build the pipeline you'll need credentials to authenticate jenkins against Github
+Before you build the pipeline you'll need a Github token and use it on Jenkins so that it can pull the respository
 
 - Navigate to your Github users setting
 - Click on 'Developer Settings'
@@ -119,15 +183,18 @@ Create your pipeline
 - In the 'Repository HTTPS URL' field add your repositories URL
 - Remove all behaviors except 'Discover branches' and select 'all branches'
 
-- We'll configure a web-hook on Jenkins to have Github communicate to Jenkins that a PR has been opened so there is no need for scheduled scan of PRs.
 
 Build
+
+For now we'll scan the Github repository manually from Jenkins to download and build the repository but below we'll add a webhook so that the Pipeline is kicked off automatically
 
 - Navigate to Dashboard > Deployment 3 and click Scan Repository Now.
 
   - This will trigger a build on main since it has a Jenkins File
 
 ## AWS IAM Roles for EC2 and EBS
+
+We need to have Service Accounts that have access to EC2 and Elastic Beanstalk
 
 Create an IAM role for EC2 and EBS. These roles will be used to service EBS deployment, application and EC2 host
 
@@ -149,24 +216,9 @@ EC2 Role
 - Add AWSElasticBeanstalkMulticontainerDocker, AWSElasticBeanstalkWorkerTier, AWSElasticBeanstalkWebTier permission policies
 - Name the role 'Elastic-EC2' and create
 
-Create the EBS deployment and application
-
-- Search for the Elastic Beanstalk Amazon Service
-- Click on 'Create application'
-- Add an Application name like 'url-shorter'
-- The GitHub repository is a Flask Application written with Python 3.9 so select the Python as the Platform and 3.9 as the branch
-- In the Application Code section, upload the Zip file you downloaded from the Jenkins server
-- You'll need to populate the 'Version Label' with a version of the application e.g v1
-- Use the ElasticEC2 role to service the EC2 instances and aws-elasticbeanstalk-service-role to service the EBS environment
-- Select a VPC
-- Select a desired availability zone
-- Select your desired boot device and size like General Purpose SSD and 10GB
-- Select an Instance type like T2.Micro
-- Submit
-
 ## Install AWS CLI
 
-Create an IAM Access Key and Secret Access Key
+Create an IAM Access Key and Secret Access Key. These will be used by the awscli and the awsebcli
 
 IAM
 
