@@ -139,9 +139,9 @@ Start Jenkins service
 sudo systemctl start jenkins
 ```
 
-Access the Jenkins dashboard. We'll being to build the pipeline. We are using a multibranch pipeline. At the moment this is pretty naive.
+Access the Jenkins dashboard. We'll begin to build the pipeline. We are using a multibranch pipeline. At the moment this is pretty naive.
 We have the branch discovery set to 'All Branches.' I have questions whether this will trigger build, test, and deploy when branches that aren't ```main```
-are pushed to our repository. In the 'Places for Imrovement' section below we note some additional behaviors the could be implemented to only trigger a build on branches that initiate a PR. In short we want to use multibranch to know whether in isolation a PR branch has a problem and if that branch would break the ```main``` branch if merged, but that's not fully implement here. See 'Places for Improvemnet' below. 
+are pushed to our repository. In the 'Places for Improvement' section below we note some additional behaviors the could be implemented to only trigger a build on branches that initiate a PR. In short we want to use multibranch to know whether in isolation a PR branch has a problem and if that branch would break the ```main``` branch if merged, but that's not fully implement here. See 'Places for Improvemnet' below. 
 
 - Retrieve admin password from /var/jenkins/secrets/initialAdminPassword
 - Navigate to {public.ip}:8080 on your browser to configure the dashboard. You will be prompted for the admin password
