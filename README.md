@@ -1,4 +1,4 @@
-# Conitnous Integration and Deployment of Elastib Beanstalk Application with Jenkins
+# Conitnous Integration and Deployment of Elastic Beanstalk Application with Jenkins
 
 Summary
 
