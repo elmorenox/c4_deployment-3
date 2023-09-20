@@ -2,7 +2,7 @@
 
 Summary
 
-The app in this repository is used in the automation a build and test on Kenkins and a deployment to Elastic Beanstalk.
+The app in this repository is used in the automation a build and test on Jenkins and a deployment to Elastic Beanstalk.
 We use awsebcli on the Jenkis server to deploy with Elastic Beanstalk. The Jenkins server is on and EC2. 
 We give access to Jenkins to pull from thhis GitHub repository. 
 We also add behaviors and a webhook so that the pull is automated when a branch is created. 
