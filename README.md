@@ -9,7 +9,7 @@ We also add behaviors and a webhook so that the pull is automated when a branch 
 This is not fully fleshed out and we need to test whether a branches that are not ```main``` and are pushed to the repo also trigger a deploy. 
 This is not behavior we want and we have noted some additional steps to improve this at the end of this document. 
 
-This is out Jenkins file
+This is our Jenkins file
 
 ```json
 pipeline {
